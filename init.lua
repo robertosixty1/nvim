@@ -84,9 +84,12 @@ local ensure_packer = function()
 end
 
 local packer_bootstrap = ensure_packer()
+LSP_SERVERS = {"clangd", "rust_analyzer", "sumneko_lua"}
 
 return require('packer').startup(function(use)
     use 'wbthomason/packer.nvim'
+    use 'RRethy/nvim-base16'
+    use 'kyazdani42/nvim-palenight.lua'
 
     use {
         'nvim-lualine/lualine.nvim',
@@ -98,58 +101,209 @@ return require('packer').startup(function(use)
         end
     }
 
-    use 'RRethy/nvim-base16'
-    use 'kyazdani42/nvim-palenight.lua'
-
     -------------------
     -- LSP SERVERS
     -------------------
 
-    use 'p00f/clangd_extensions.nvim'
-    use 'simrat39/rust-tools.nvim'
-    use 'folke/lua-dev.nvim'
-
     use {
-        'junnplus/lsp-setup.nvim',
-        requires = {
-            'neovim/nvim-lspconfig',
-            'williamboman/mason.nvim',
-            'williamboman/mason-lspconfig.nvim',
-        },
+        "williamboman/mason.nvim",
         config = function()
-            require('lsp-setup').setup {
-                servers = {
-                    rust_analyzer = require('lsp-setup.rust-tools').setup({
-                        server = {
-                            settings = {
-                                ['rust-analyzer'] = {
-                                    cargo = {
-                                        loadOutDirsFromCheck = true,
-                                    },
-                                    procMacro = {
-                                        enable = true,
-                                    },
-                                },
-                            },
-                        },
-                    }),
-                    clangd = require('lsp-setup.clangd_extensions').setup({}),
-                    sumneko_lua = require('lua-dev').setup({
-                        lspconfig = {
-                            settings = {
-                                Lua = {
-                                    format = {
-                                        enable = true,
-                                    }
-                                }
-                            }
-                        }
-                    }),
-                }
-            }
-            --A.nvim_command('LspStart')
+            require('mason').setup()
         end
     }
+
+    use {
+        'neovim/nvim-lspconfig',
+        config = function()
+            require('lspconfig').clangd.setup{}
+            require('lspconfig').sumneko_lua.setup{}
+            require('lspconfig').rust_analyzer.setup{}
+        end
+    }
+
+    use {
+        'hrsh7th/cmp-buffer',
+        config = function()
+            require('cmp').setup({
+                sources = {
+                    { name = 'buffer' },
+                },
+            })
+        end
+    }
+
+    use {
+        'hrsh7th/cmp-nvim-lsp',
+        config = function()
+            require'cmp'.setup {
+                sources = {
+                    { name = 'nvim_lsp' }
+                }
+            }
+
+            -- The nvim-cmp almost supports LSP's capabilities so You should advertise it to LSP servers..
+            local capabilities = vim.lsp.protocol.make_client_capabilities()
+            capabilities = require('cmp_nvim_lsp').update_capabilities(capabilities)
+
+            local lc = require('lspconfig')
+            for _, ls in ipairs(LSP_SERVERS) do
+                lc[ls].setup{
+                    capabilities = capabilities,
+                }
+            end
+        end
+    }
+
+    use {
+        'hrsh7th/nvim-cmp',
+        config = function()
+            local cmp = require'cmp'
+
+            cmp.setup({
+                snippet = {
+                    -- REQUIRED - you must specify a snippet engine
+                    expand = function(args)
+                        -- vim.fn["vsnip#anonymous"](args.body) -- For `vsnip` users.
+                        require('luasnip').lsp_expand(args.body) -- For `luasnip` users.
+                        -- require('snippy').expand_snippet(args.body) -- For `snippy` users.
+                        -- vim.fn["UltiSnips#Anon"](args.body) -- For `ultisnips` users.
+                    end,
+                },
+                window = {
+                    -- completion = cmp.config.window.bordered(),
+                    -- documentation = cmp.config.window.bordered(),
+                },
+                mapping = cmp.mapping.preset.insert({
+                    ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+                    ['<C-f>'] = cmp.mapping.scroll_docs(4),
+                    ['<C-Space>'] = cmp.mapping.complete(),
+                    ['<C-e>'] = cmp.mapping.abort(),
+                    ['<CR>'] = cmp.mapping.confirm({ select = true }), -- Accept currently selected item. Set `select` to `false` to only confirm explicitly selected items.
+                }),
+                sources = cmp.config.sources({
+                    { name = 'nvim_lsp' },
+                 -- { name = 'vsnip' }, -- For vsnip users.
+                    { name = 'luasnip' }, -- For luasnip users.
+                 -- { name = 'ultisnips' }, -- For ultisnips users.
+                 -- { name = 'snippy' }, -- For snippy users.
+                },
+                {
+                    { name = 'buffer' },
+                })
+            })
+
+            -- Set configuration for specific filetype.
+            cmp.setup.filetype('gitcommit', {
+                sources = cmp.config.sources({
+                    { name = 'cmp_git' }, -- You can specify the `cmp_git` source if you were installed it.
+                },
+                {
+                    { name = 'buffer' },
+                })
+            })
+
+            -- Use buffer source for `/` (if you enabled `native_menu`, this won't work anymore).
+            cmp.setup.cmdline('/', {
+                mapping = cmp.mapping.preset.cmdline(),
+                sources = {
+                    { name = 'buffer' }
+                }
+            })
+
+            -- Use cmdline & path source for ':' (if you enabled `native_menu`, this won't work anymore).
+            cmp.setup.cmdline(':', {
+                mapping = cmp.mapping.preset.cmdline(),
+                sources = cmp.config.sources({
+                    { name = 'path' }
+                },
+                {
+                    { name = 'cmdline' }
+                })
+            })
+
+            -- Set up lspconfig.
+            local capabilities = require('cmp_nvim_lsp').update_capabilities(vim.lsp.protocol.make_client_capabilities())
+
+            local lc = require('lspconfig')
+            for _, ls in ipairs(LSP_SERVERS) do
+                lc[ls].setup {
+                    capabilities = capabilities
+                }
+            end
+        end
+    }
+
+    use {
+        'onsails/lspkind-nvim',
+        config = function()
+            require('lspkind').init({
+                -- DEPRECATED (use mode instead): enables text annotations
+                --
+                -- default: true
+                -- with_text = true,
+
+                -- defines how annotations are shown
+                -- default: symbol
+                -- options: 'text', 'text_symbol', 'symbol_text', 'symbol'
+                mode = 'symbol_text',
+
+                -- default symbol map
+                -- can be either 'default' (requires nerd-fonts font) or
+                -- 'codicons' for codicon preset (requires vscode-codicons font)
+                --
+                -- default: 'default'
+                preset = 'codicons',
+
+                -- override preset symbols
+                --
+                -- default: {}
+                symbol_map = {
+                  Text = "",
+                  Method = "",
+                  Function = "",
+                  Constructor = "",
+                  Field = "ﰠ",
+                  Variable = "",
+                  Class = "ﴯ",
+                  Interface = "",
+                  Module = "",
+                  Property = "ﰠ",
+                  Unit = "塞",
+                  Value = "",
+                  Enum = "",
+                  Keyword = "",
+                  Snippet = "",
+                  Color = "",
+                  File = "",
+                  Reference = "",
+                  Folder = "",
+                  EnumMember = "",
+                  Constant = "",
+                  Struct = "פּ",
+                  Event = "",
+                  Operator = "",
+                  TypeParameter = ""
+                },
+            })
+        end
+    }
+
+    use {
+        'simrat39/symbols-outline.nvim',
+        config = function()
+            require("symbols-outline").setup()
+        end
+    }
+
+    use {
+        'williamboman/mason-lspconfig.nvim',
+        config = function()
+            require("mason-lspconfig").setup()
+        end
+    }
+
+    use 'saadparwaiz1/cmp_luasnip'
+    use "L3MON4D3/LuaSnip"
 
     if packer_bootstrap then
         require('packer').sync()
