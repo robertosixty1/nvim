@@ -69,6 +69,21 @@ g.mapleader = ' '
 g.maplocalleader = ' '
 
 -----------------------
+-- KEYBINDS
+-----------------------
+
+local function map(m, k, v)
+   vim.keymap.set(m, k, v, { silent = true })
+end
+
+-- Mimic shell movements
+map('i', '<C-E>', '<ESC>A')
+map('i', '<C-A>', '<ESC>I')
+
+map('n', '<leader>t', '<CMD>NvimTreeToggle<CR>')
+map('n', '<leader>ft', '<CMD>NvimTreeFocus<CR>')
+
+-----------------------
 -- PLUGINS
 -----------------------
 
@@ -88,8 +103,23 @@ LSP_SERVERS = {"clangd", "rust_analyzer", "sumneko_lua"}
 
 return require('packer').startup(function(use)
     use 'wbthomason/packer.nvim'
+
+    -------------------
+    -- UI Changes
+    -------------------
+
     use 'RRethy/nvim-base16'
     use 'kyazdani42/nvim-palenight.lua'
+
+    use {
+        'kyazdani42/nvim-tree.lua',
+        requires = {
+            'kyazdani42/nvim-web-devicons',
+            config = function()
+                require("nvim-tree").setup()
+            end
+        },
+    }
 
     use {
         'nvim-lualine/lualine.nvim',
