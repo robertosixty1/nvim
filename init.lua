@@ -22,6 +22,7 @@ o.numberwidth = 2
 o.relativenumber = true
 o.signcolumn = 'yes'
 o.cursorline = true
+A.nvim_command('set noshowmode')
 
 -- Colorscheme
 local ok, _ = pcall(vim.cmd, 'colorscheme base16-dracula')
