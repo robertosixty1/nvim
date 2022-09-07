@@ -115,9 +115,10 @@ return require('packer').startup(function(use)
     use {
         'neovim/nvim-lspconfig',
         config = function()
-            require('lspconfig').clangd.setup{}
-            require('lspconfig').sumneko_lua.setup{}
-            require('lspconfig').rust_analyzer.setup{}
+            local lc = require('lspconfig')
+            for _, ls in ipairs(LSP_SERVERS) do
+                lc[ls].setup{}
+            end
         end
     }
 
